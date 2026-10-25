@@ -1,7 +1,7 @@
 
 # Flood Risk Composite Score
 
-To improve my open-source geospatial skills, I developed a flood risk scoring method, tested in on Wilwaukee, WI, and visualized my results using open-source tools and softwares. 
+To improve my open-source geospatial skills, I developed a flood risk scoring method, tested in on Wilwaukee, WI, and visualized my results using open-source tools and softwares. You can see the results hosted on github pages here: 
 
 ![Map screenshot](images/screenshot.tiff)
 *[Screenshot from index.html]*
