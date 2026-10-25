@@ -1,0 +1,21 @@
+# Core data stack
+numpy>=1.26
+pandas>=2.0
+matplotlib>=3.8
+
+# Geospatial
+geopandas>=0.14
+shapely>=2.0
+pyarrow>=14.0
+
+# PostGIS / database
+SQLAlchemy>=2.0
+psycopg2-binary>=2.9
+GeoAlchemy2>=0.14
+
+# DuckDB (extract_data.sql and the parquet fallback loader)
+duckdb>=1.0
+
+# Running the notebook
+jupyterlab>=4.0
+ipykernel>=6.0

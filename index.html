@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milwaukee Flood Risk</title>
+
+    <!-- Fonts: Barlow Condensed (headings) + Source Serif 4 (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- MapLibre GL JS -->
+    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.21.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.21.0/dist/maplibre-gl.js"></script>
+
+    <!-- PMTiles protocol plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/pmtiles@4.4.0/dist/pmtiles.js"></script>
+
+    <style>
+        :root {
+            --night: #0f1720; --slate: #1e2a38; --steel: #3b4d61; --mist: #8fa3b8;
+            --fog: #dfe6ed; --paper: #eef2f6; --ink: #14202c; --bolt: #f4e8a3;
+            --c: #3182bd;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font: 19px/1.65 "Source Serif 4", Georgia, serif; color: var(--ink); background: var(--paper); }
+        h1, h2, h3, h4 { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; line-height: 1.05; }
+        :focus-visible { outline: 3px solid var(--bolt); outline-offset: 2px; }
+
+        /* ── Hero: storm clouds, rain, one lightning flash on load ── */
+        .hero { position: relative; overflow: hidden; color: #fff; min-height: 78vh; display: flex; align-items: flex-end;
+                background: linear-gradient(180deg, #0b1118 0%, #1b2836 55%, #33465a 100%); }
+        .clouds { position: absolute; inset: 0 0 auto 0; height: 55%; pointer-events: none;
+                  background:
+                    radial-gradient(ellipse 40% 60% at 15% 20%, rgba(90,108,128,.55), transparent 70%),
+                    radial-gradient(ellipse 45% 70% at 55% 5%, rgba(70,88,108,.6), transparent 70%),
+                    radial-gradient(ellipse 35% 55% at 90% 25%, rgba(100,118,138,.5), transparent 70%);
+                  animation: drift 40s ease-in-out infinite alternate; }
+        @keyframes drift { to { transform: translateX(-4%); } }
+        .rain { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+        .drop { position: absolute; top: -60px; width: 1.5px; height: 46px; opacity: .5;
+                background: linear-gradient(transparent, #a9c4de); transform: rotate(12deg);
+                animation: fall linear infinite; }
+        @keyframes fall { to { transform: translate(-60px, 110vh) rotate(12deg); } }
+        .flash { position: absolute; inset: 0; background: #dbe8ff; opacity: 0; pointer-events: none;
+                 animation: flash 7s 1.2s infinite; }
+        @keyframes flash { 0%, 100% { opacity: 0; } 1% { opacity: .55; } 2.5% { opacity: .05; } 4% { opacity: .4; } 7% { opacity: 0; } }
+        .hero-inner { position: relative; z-index: 2; width: 100%; max-width: 1100px; margin: 0 auto; padding: 120px 24px 72px; }
+        .hero h1 { font-size: clamp(52px, 10vw, 128px); letter-spacing: -.01em; color: var(--fog); }
+        .hero h1 span { display: block; color: var(--mist); }
+        .lede { font-size: clamp(19px, 2.2vw, 24px); max-width: 34ch; margin-top: 22px; color: #c4d0dc; }
+        .water { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 14px;
+                 background: repeating-linear-gradient(90deg, #4b79a1 0 40px, #3d6788 40px 80px); opacity: .85; }
+
+        /* ── About ── */
+        .about { padding: 72px 24px; background: var(--fog); }
+        .prose { max-width: 700px; margin: 0 auto; }
+        .prose h2 { font-size: 44px; margin-bottom: 18px; color: var(--slate); }
+        .prose p { margin-bottom: 16px; }
+        .todo { color: #5d6f82; font-style: italic; border-left: 4px solid var(--steel); padding-left: 16px; }
+
+        /* ── Score intros: tinted to match each map's palette ── */
+        .intro { padding: 56px 24px 36px; background: var(--slate); color: var(--fog); border-top: 6px solid var(--c); }
+        .intro .prose h2 { color: #fff; font-size: clamp(32px, 5vw, 52px); margin-bottom: 4px; }
+        .swatch { display: flex; height: 10px; width: 220px; margin: 12px 0 20px; border-radius: 2px; overflow: hidden; }
+        .swatch i { flex: 1; }
+        .intro .todo { color: #a9b8c8; border-color: var(--c); }
+
+        /* ── Maps ── */
+        .map-wrapper { position: relative; width: 100%; height: 70vh; min-height: 440px; background: var(--slate); }
+        .map { width: 100%; height: 100%; }
+        .legend, .info { position: absolute; background: rgba(255,255,255,.95); padding: 12px 14px; border-radius: 4px;
+                         box-shadow: 0 1px 6px rgba(0,0,0,.35); font: 14px/1.45 "Source Serif 4", serif; z-index: 1; }
+        .legend { bottom: 30px; left: 10px; }
+        .legend h4 { font-size: 16px; margin-bottom: 8px; }
+        .legend-row { display: flex; align-items: center; margin-bottom: 3px; }
+        .legend-color { width: 22px; height: 14px; margin-right: 8px; border-radius: 2px; border: 1px solid rgba(0,0,0,.15); }
+        .info { top: 10px; left: 10px; max-width: 280px; }
+        .info h3 { font-size: 20px; margin-bottom: 2px; }
+        .info p { color: #4d5d6d; }
+
+        /* ── Sources ── */
+        .sources { padding: 72px 24px 88px; background: var(--night); color: var(--fog); }
+        .sources h2 { color: #fff; }
+        .sources ul { list-style: none; }
+        .sources li { padding: 12px 0; border-bottom: 1px solid var(--steel); }
+        .sources a { color: var(--bolt); text-underline-offset: 3px; }
+
+        @media (max-width: 700px) { body { font-size: 17px; } .hero-inner { padding-top: 90px; } }
+        @media (prefers-reduced-motion: reduce) {
+            .drop, .flash, .clouds { animation: none !important; }
+            .flash { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+<header class="hero">
+    <div class="clouds"></div>
+    <div class="rain" id="rain" aria-hidden="true"></div>
+    <div class="flash" aria-hidden="true"></div>
+    <div class="hero-inner">
+        <h1>Milwaukee <span>Flood Risk</span></h1>
+        <p class="lede">Building a Composite Index usng Open-Source Methods</p>
+    </div>
+    <div class="water"></div>
+</header>
+
+<!-- ═══════════════════════════ ABOUT ═══════════════════════════ -->
+<section class="about" id="about">
+    <div class="prose">
+        <h2>About</h2>
+        <p class="todo">As part of my efforts to improve my open-source geospatial skills, I decided to build a simple composite score
+            to assess flood risk in a given area. For this project, I chose Downtown Milwaukee. I used SQL queries to download 3 years of storm events
+            from NOAA, flood zone data from FEMA, and building and water data from Overture. </p>
+        <p class="todo">I then built a python notebook to conduct my analysis, creating a score from 0-100 for each hex bin in my bounding box. I then created a
+            a composite score which weighted and combined each variable to create a more holistic understanding.</p>
+        <p class="todo">Finally, after converting the output geojson into pmtiles using tippacanoe, I built a html file to visualize my
+            data as maps with pop-ups and captions. Feel free to scroll below to see the final maps, and for a more in depth explanation,
+            you can access the github repo here: </p>
+    </div>
+</section>
+
+<!-- ═══════════════ MAP 1–4 (generated sections go here) ═══════════════ -->
+<div id="maps"></div>
+
+<!-- ═══════════════════════════ SOURCES ═══════════════════════════ -->
+<section class="sources" id="sources">
+    <div class="prose">
+        <h2>Sources</h2>
+        <ul>
+            <li><a href="#" target="_blank" rel="noopener">FEMA Flood Data: https://msc.fema.gov/portal/home</a></li>
+            <li><a href="#" target="_blank" rel="noopener">NOAA Storm Events Database: https://www.ncei.noaa.gov/access/storm-events-database/</a></li>
+            <li><a href="#" target="_blank" rel="noopener">Overture Buildings: https://docs.overturemaps.org/guides/buildings/</a></li>
+            <li><a href="#" target="_blank" rel="noopener">Overture Water: https://docs.overturemaps.org/schema/reference/base/water/</a></li>
+        </ul>
+    </div>
+</section>
+
+<script>
+    // ── Register the PMTiles protocol once; every map shares it ───────────
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol('pmtiles', protocol.tile);
+
+    const int = v => Number(v).toLocaleString();
+    const dec = n => v => Number(v).toFixed(n);
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  MAP SETTINGS — edit breaks, colors, blurbs, and popup rows here
+    //
+    //  breaks : class cut-offs. 4 breaks = 5 colors.
+    //  colors : light → dark, one more than the number of breaks.
+    //  popup  : [label, tile property, formatter, bold?]
+    // ══════════════════════════════════════════════════════════════════════
+    const FILE = 'data/processed/milwaukee_risk.pmtiles';
+    const LAYER = 'milwaukee_risk';
+
+    // Read the data extent from the PMTiles header so maps open right on the study area
+    const archive = new pmtiles.PMTiles(new URL(FILE, window.location.href).href);
+    protocol.add(archive);   // lets the protocol reuse this instance instead of re-fetching the header
+    const boundsPromise = archive.getHeader().then(h => [[h.minLon, h.minLat], [h.maxLon, h.maxLat]]);
+    const BREAKS = [20, 40, 60, 80];            // scores run 0–100
+    const score = v => dec(1)(v);
+
+    const MAPS = [
+        {
+            id: 'map-flood-zone',
+            heading: 'Flood zone score',
+            blurb: 'Each hexagon is shaded by its flood zone score. First, every building gets a hazard rating based on its FEMA flood zone: 100 for the Special Flood Hazard Area (the 100-year floodplain), 50 for the 0.2% annual chance (500-year) zone, 25 for areas where the hazard is undetermined, and 0 for minimal or unmapped areas. These ratings are averaged for all buildings in each hexagon, then rescaled so the least-exposed hexagon scores 0 and the most-exposed scores 100. Darker blue means a larger share of that area’s buildings sit in higher-hazard flood zones.',
+            title: 'Flood Zone Score',
+            hint: 'Based on the share of buildings in FEMA flood zones. Click an area for details.',
+            legendTitle: 'Flood zone score',
+            field: 'flood_zone_score',
+            breaks: BREAKS,
+            colors: ['#eff3ff', '#bdd7e7', '#6baed6', '#3182bd', '#08519c'],   // Blues
+            accent: '#3182bd',
+            popup: [
+                ['Buildings', 'n_buildings', int, false],
+                ['In SFHA', 'pct_sfha', v => dec(1)(v) + '%', false],
+                ['In shaded X zone', 'pct_shaded_x', v => dec(1)(v) + '%', false],
+                ['Flood zone score', 'flood_zone_score', score, true]
+            ]
+        },
+        {
+            id: 'map-storm',
+            heading: 'Storm density score',
+            blurb: 'Each hexagon is shaded by its storm density score. I counted the storm events recorded between 2022 and 2024 that fall within each hexagon, then rescaled those counts so the hexagon with the fewest events scores 0 and the one with the most scores 100. Darker purple means more storm activity relative to the rest of the study area.',
+            title: 'Storm Density Score',
+            hint: 'Based on historical storm events near each area. Click an area for details.',
+            legendTitle: 'Storm density score',
+            field: 'storm_density_score',
+            breaks: BREAKS,
+            colors: ['#f2f0f7', '#cbc9e2', '#9e9ac8', '#756bb1', '#54278f'],   // Purples
+            accent: '#756bb1',
+            popup: [
+                ['Buildings', 'n_buildings', int, false],
+                ['Storm events', 'storm_events', int, false],
+                ['Storm density score', 'storm_density_score', score, true]
+            ]
+        },
+        {
+            id: 'map-water',
+            heading: 'Water proximity score',
+            blurb: 'Each hexagon is shaded by its water proximity score. Every building is scored by how close it is to a water body: 100 if it’s within 100 m, about 67 if it’s within 200 m, about 33 if it’s within 500 m, and 0 if it’s farther away. These building scores are averaged within each hexagon, then rescaled so the hexagon with the lowest average scores 0 and the highest scores 100. Darker blue-green means more of the area’s buildings sit close to water.',
+            title: 'Water Proximity Score',
+            hint: 'Based on how many buildings sit close to water. Click an area for details.',
+            legendTitle: 'Water proximity score',
+            field: 'water_proximity_score',
+            breaks: BREAKS,
+            colors: ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'],   // GnBu
+            accent: '#43a2ca',
+            popup: [
+                ['Buildings', 'n_buildings', int, false],
+                ['Within 100 m', 'bldgs_within_100m', int, false],
+                ['Within 200 m', 'bldgs_within_200m', int, false],
+                ['Within 500 m', 'bldgs_within_500m', int, false],
+                ['Share within 500 m', 'pct_within_500m', v => dec(1)(v) + '%', false],
+                ['Water proximity score', 'water_proximity_score', score, true]
+            ]
+        },
+        {
+            id: 'map-risk',
+            heading: 'Composite risk score',
+            blurb: 'The composite risk score combines the three scores above into a single measure of flood risk. Each hexagon’s flood zone, storm density and water proximity scores are blended as a weighted average (flood zone 50%, storm density 10%, water proximity 40%), then rescaled so the lowest-risk hexagon scores 0 and the highest scores 100. Hexagons are also ranked with 1 being the highest, which you’ll see in the popup as “Risk rank.” Darker red means higher relative flood risk. Hexagons with fewer than 5 buildings were left out so that a few buildings couldn’t skew the results.',
+            title: 'Composite Risk Score',
+            hint: 'The combined flood risk score. Click an area for details.',
+            legendTitle: 'Composite risk score',
+            field: 'risk_score',
+            breaks: BREAKS,
+            colors: ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'],   // YlOrRd
+            accent: '#f03b20',
+            popup: [
+                ['Buildings', 'n_buildings', int, false],
+                ['Flood zone score', 'flood_zone_score', score, false],
+                ['Storm density score', 'storm_density_score', score, false],
+                ['Water proximity score', 'water_proximity_score', score, false],
+                ['Composite risk score', 'risk_score', score, true],
+                ['Risk rank', 'risk_rank', int, true]
+            ]
+        }
+    ];
+
+    // ── Legend labels ("< 20", "20 – 40", ..., "80+") ─────────────────────
+    function legendLabels(breaks) {
+        return [
+            `&lt; ${breaks[0]}`,
+            ...breaks.slice(1).map((b, i) => `${breaks[i]} – ${b}`),
+            `${breaks[breaks.length - 1]}+`
+        ];
+    }
+
+    // ── Builds the intro + map wrapper HTML for each map ──────────────────
+    const container = document.getElementById('maps');
+    MAPS.forEach(cfg => {
+        container.insertAdjacentHTML('beforeend', `
+            <section class="intro" style="--c:${cfg.accent}">
+                <div class="prose">
+                    <h2>${cfg.heading}</h2>
+                    <div class="swatch">${cfg.colors.map(c => `<i style="background:${c}"></i>`).join('')}</div>
+                    <p class="todo">${cfg.blurb}</p>
+                </div>
+            </section>
+            <div class="map-wrapper" id="${cfg.id}"><div class="map"></div></div>`);
+    });
+
+    // ── Creates one interactive map from a settings object ────────────────
+    function createMap(cfg) {
+        const wrapper = document.getElementById(cfg.id);
+
+        const info = document.createElement('div');
+        info.className = 'info';
+        info.innerHTML = `<h3>${cfg.title}</h3><p>${cfg.hint}</p>`;
+        wrapper.appendChild(info);
+
+        const labels = legendLabels(cfg.breaks);
+        const legend = document.createElement('div');
+        legend.className = 'legend';
+        legend.innerHTML = `<h4>${cfg.legendTitle}</h4>` + cfg.colors.map((color, i) =>
+            `<div class="legend-row"><div class="legend-color" style="background:${color}"></div> ${labels[i]}</div>`
+        ).join('');
+        wrapper.appendChild(legend);
+
+        const map = new maplibregl.Map({
+            container: wrapper.querySelector('.map'),
+            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            center: [-87.9065, 43.0389],  // Milwaukee
+            zoom: 10.5,
+            maxZoom: 15,
+            minZoom: 8,
+            cooperativeGestures: true  // Ctrl/Cmd + scroll to zoom, so the page can still scroll
+        });
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+        // Zoom to the study area once the extent is known
+        boundsPromise.then(b => map.fitBounds(b, { padding: 40, animate: false }));
+
+        // 'step' color expression: [ 'step', value, color0, break1, color1, ... ]
+        const fillColor = ['step', ['get', cfg.field], cfg.colors[0]];
+        cfg.breaks.forEach((b, i) => fillColor.push(b, cfg.colors[i + 1]));
+
+        map.on('load', () => {
+            map.addSource('risk', {
+                type: 'vector',
+                url: 'pmtiles://' + new URL(FILE, window.location.href).href
+            });
+
+            map.addLayer({
+                id: 'risk-fill', type: 'fill', source: 'risk', 'source-layer': LAYER,
+                paint: { 'fill-color': fillColor, 'fill-opacity': 0.75 }
+            });
+
+            map.addLayer({
+                id: 'risk-outline', type: 'line', source: 'risk', 'source-layer': LAYER,
+                paint: { 'line-color': '#9fb3c8', 'line-width': 0.4, 'line-opacity': 0.4 }
+            });
+
+            // Highlight layer — matches nothing until an area is hovered
+            map.addLayer({
+                id: 'risk-highlight', type: 'line', source: 'risk', 'source-layer': LAYER,
+                paint: { 'line-color': '#fff', 'line-width': 2.5 },
+                filter: ['==', ['get', 'area_id'], -1]
+            });
+        });
+
+        // Click — popup with area details
+        map.on('click', 'risk-fill', (e) => {
+            if (!e.features || e.features.length === 0) return;
+            const p = e.features[0].properties;
+            const rows = cfg.popup.map(([label, key, fmt, bold]) => {
+                const value = fmt(p[key]);
+                return `${label}: ${bold ? `<strong>${value}</strong>` : value}`;
+            }).join('<br>');
+
+            new maplibregl.Popup({ maxWidth: '260px' })
+                .setLngLat(e.lngLat)
+                .setHTML(`<strong>Area ${p.area_id}</strong><br>
+                          <hr style="margin:4px 0;border:none;border-top:1px solid #ddd">${rows}`)
+                .addTo(map);
+        });
+
+        // Hover — outline the area under the cursor
+        map.on('mousemove', 'risk-fill', (e) => {
+            map.getCanvas().style.cursor = 'pointer';
+            if (e.features && e.features.length > 0) {
+                map.setFilter('risk-highlight', ['==', ['get', 'area_id'], e.features[0].properties.area_id]);
+            }
+        });
+        map.on('mouseleave', 'risk-fill', () => {
+            map.getCanvas().style.cursor = '';
+            map.setFilter('risk-highlight', ['==', ['get', 'area_id'], -1]);
+        });
+    }
+
+    MAPS.forEach(createMap);
+
+    // ── Decorative: rain (new pattern on each load) ───────────────────────
+    (function () {
+        const rain = document.getElementById('rain');
+        for (let i = 0; i < 110; i++) {
+            const d = document.createElement('div');
+            d.className = 'drop';
+            d.style.left = (Math.random() * 120 - 10) + '%';
+            d.style.animationDuration = (0.7 + Math.random() * 0.8) + 's';
+            d.style.animationDelay = (-Math.random() * 2) + 's';
+            d.style.opacity = 0.25 + Math.random() * 0.45;
+            rain.appendChild(d);
+        }
+    })();
+</script>
+
+</body>
+</html>

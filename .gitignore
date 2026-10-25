@@ -1,0 +1,17 @@
+# Source data: regenerate from PP2 output.
+data/raw/
+
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor noise
+.vscode/
+.idea/
+*.swp
+
+# Local server logs
+*.log
+
+
