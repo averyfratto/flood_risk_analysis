@@ -3,7 +3,7 @@
 
 To improve my open-source geospatial skills, I developed a flood risk scoring method, tested in on Wilwaukee, WI, and visualized my results using open-source tools and softwares. 
 
-![Map screenshot](/Users/averyfratto/accelerator/PortfolioProject/part4/screenshot.tiff)
+![Map screenshot](image/screenshot.tiff)
 *[Screenshot from index.html]*
 
 ## The Guiding Question
