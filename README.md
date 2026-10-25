@@ -1,15 +1,10 @@
-# Portfolio README Template
 
-Use this template for the README.md of your capstone project repository. Replace all `[bracketed]` text with your own content.
-
----
-
-# [Project Title]
+# [Flood Risk Composite Score]
 
 [One-sentence description of what this project does and why it matters.]
 
-![Map screenshot](images/map_screenshot.png)
-*[Caption describing what the map shows.]*
+![Map screenshot](/Users/averyfratto/accelerator/PortfolioProject/part4/screenshot.tiff)
+*[Screenshow from index.html]*
 
 ## The Question
 
